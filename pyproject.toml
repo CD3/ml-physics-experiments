@@ -1,18 +1,22 @@
 [tool.poetry]
-name = "ml-physics-experiments"
-version = "0.1.0"
+name = "cream"
+version = "0.0.0"
 description = ""
-authors = ["CD Clark III <clifton.clark@gmail.com>"]
+authors = ["CD Clark III <clifton.clark@gmail.com>", "Kaleb Brunhoeber <kxbrunhoeber2@mail.fhsu.edu>"]
 readme = "README.md"
-packages = [{include = "ml_physics_experiments"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 pint = "^0.23"
-numpy = "^1.26.4"
-scipy = "^1.12.0"
-torch = "^2.2.1"
+numpy = "^1"
+scipy = "^1"
+torch = "^2"
+click = "^8"
+pandas = "^2"
 
+[tool.poetry.group.dev.dependencies]
+mypy = "^1"
+pandas-stubs = "^2"
 
 [build-system]
 requires = ["poetry-core"]
