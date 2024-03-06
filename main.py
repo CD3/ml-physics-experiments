@@ -1,12 +1,13 @@
 import click
 import pandas as pd
 import os
+import numpy as np
 
 import cream.simple_1d as s1d
 
 os.environ["KERAS_BACKEND"] = "jax"
 import keras
-from keras import losses, optimizers, metrics, callbacks, layers
+from keras import losses, optimizers, callbacks, layers
 
 
 @click.group()
@@ -85,30 +86,31 @@ def train(training_data, testing_data, model_file, epochs):
     model = keras.Sequential(
         [
             layers.Input(shape=(4,)),
-            layers.Dense(512, activation="relu"),
-            layers.Dense(512, activation="relu"),
-            layers.Dropout(0.3),
-            layers.Dense(512, activation="relu"),
-            layers.Dropout(0.3),
+            layers.BatchNormalization(),
+            layers.Dense(1024, activation="relu"),
+            layers.Dropout(0.5),
+            layers.Dense(1024, activation="relu"),
+            layers.Dropout(0.5),
+            layers.Dense(1024, activation="relu"),
+            layers.Dropout(0.5),
             layers.Dense(1),
         ]
     )
 
     model.compile(
         loss=losses.Huber(delta=1.0),
-        optimizer=optimizers.Adam(learning_rate=1e-3),
-        metrics=[metrics.Accuracy()],
+        optimizer=optimizers.Adam(learning_rate=1e-2),
     )
 
     model.fit(
         training_x,
         training_y,
-        batch_size=128,
+        batch_size=64,
         epochs=epochs,
-        validation_split=0.15,
+        validation_split=0.10,
         callbacks=[
             callbacks.ModelCheckpoint(filepath="out/{epoch}.keras"),
-            callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=2),
+            callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=3),
         ],
     )
 
@@ -131,7 +133,7 @@ def train(training_data, testing_data, model_file, epochs):
 def eval(m, k, g, t, model_file):
     """Evaluate a given model against the parameters"""
     model = keras.saving.load_model(model_file)
-    click.echo(model.predict([m, k, g, t], verbose=0))
+    click.echo(model.predict(np.array([[m, k, g, t]]), verbose=0))
 
 
 cli.add_command(gendat)
