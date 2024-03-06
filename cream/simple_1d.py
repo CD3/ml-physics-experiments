@@ -9,7 +9,7 @@ def m_(g: np.random.Generator, n: int, a: float, b: float) -> np.ndarray:
 
 def C_(g: np.random.Generator, n: int) -> np.ndarray:
     """Sample `n` drag coefficient values (unitless) from a normal distribution, constrained such that most values will be within the range 0.4 - 1.0"""
-    return np.fabs(g.normal(0.7, 0.3, n))
+    return np.fabs(g.normal(0.7, 2.0, n))
 
 
 def A_(g: np.random.Generator, n: int, a: float, b: float) -> np.ndarray:
@@ -19,7 +19,7 @@ def A_(g: np.random.Generator, n: int, a: float, b: float) -> np.ndarray:
 
 def p_(g: np.random.Generator, n: int) -> np.ndarray:
     """Sample `n` fluid density values (in kg/m^3) from a normal distribution, constrained so that most values will be within the range 1.0 - 1.4"""
-    return np.fabs(g.normal(1.2, 0.2, n))
+    return np.fabs(g.normal(1.2, 2.0, n))
 
 
 def t_(g: np.random.Generator, n: int, b: float) -> np.ndarray:
@@ -29,7 +29,7 @@ def t_(g: np.random.Generator, n: int, b: float) -> np.ndarray:
 
 def g_(g: np.random.Generator, n: int) -> np.ndarray:
     """Sample `n` gravitational acceleration constant values (in m/s^2) from a normal distribution, constrained such that most values will be within the range 9.4 - 10.2"""
-    return np.fabs(g.normal(9.8, 0.4, n))
+    return np.fabs(g.normal(9.8, 2.0, n))
 
 
 def Vt_(
@@ -58,9 +58,9 @@ def generate(n: int) -> pd.DataFrame:
     """Generate `n` instances of training data"""
     gn = np.random.default_rng()
 
-    m = m_(gn, n, 0.5, 10)
+    m = m_(gn, n, 0.5, 50)
     C = C_(gn, n)
-    A = A_(gn, n, 1, 20)
+    A = A_(gn, n, 1, 50)
     p = p_(gn, n)
     t = t_(gn, n, 50)
     g = g_(gn, n)

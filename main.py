@@ -55,7 +55,7 @@ def gendat(output, rows):
     "-e",
     "--epochs",
     type=int,
-    default=20,
+    default=10,
     help="The number of epochs to train for",
 )
 def train(training_data, testing_data, model_file, epochs):
@@ -73,44 +73,56 @@ def train(training_data, testing_data, model_file, epochs):
         testing["cross_sectional_area"],
     )
 
+    training["terminal_velocity"], testing["terminal_velocity"] = s1d.Vt_(
+        training["mass"],
+        training["gravitational_acceleration"],
+        training["drag_coefficient"],
+        training["fluid_density"],
+        training["cross_sectional_area"],
+    ), s1d.Vt_(
+        testing["mass"],
+        testing["gravitational_acceleration"],
+        testing["drag_coefficient"],
+        testing["fluid_density"],
+        testing["cross_sectional_area"],
+    )
+
     training_x, training_y = (
-        training[["mass", "k", "gravitational_acceleration", "time"]],
+        training[["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]],
         training["relative_position"],
     )
 
     testing_x, testing_y = (
-        testing[["mass", "k", "gravitational_acceleration", "time"]],
+        testing[["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]],
         testing["relative_position"],
     )
 
     model = keras.Sequential(
         [
-            layers.Input(shape=(4,)),
-            layers.BatchNormalization(),
-            layers.Dense(1024, activation="relu"),
-            layers.Dropout(0.5),
-            layers.Dense(1024, activation="relu"),
-            layers.Dropout(0.5),
-            layers.Dense(1024, activation="relu"),
-            layers.Dropout(0.5),
+            layers.Input(shape=(5,)),
+            layers.Dense(2048, activation="relu"),
+            layers.Dropout(0.3),
+            layers.Dense(2048, activation="relu"),
+            layers.Dropout(0.3),
+            layers.Dense(2048, activation="relu"),
+            layers.Dropout(0.3),
             layers.Dense(1),
         ]
     )
 
     model.compile(
-        loss=losses.Huber(delta=1.0),
-        optimizer=optimizers.Adam(learning_rate=1e-2),
+        loss=losses.Huber(delta=10.0),
+        optimizer=optimizers.Adam(learning_rate=1e-3),
     )
 
     model.fit(
         training_x,
         training_y,
-        batch_size=64,
+        batch_size=2048,
         epochs=epochs,
         validation_split=0.10,
         callbacks=[
             callbacks.ModelCheckpoint(filepath="out/{epoch}.keras"),
-            callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=3),
         ],
     )
 
@@ -123,6 +135,7 @@ def train(training_data, testing_data, model_file, epochs):
 @click.argument("k", type=float)
 @click.argument("g", type=float)
 @click.argument("t", type=float)
+@click.argument("vt", type=float)
 @click.option(
     "-m",
     "--model-file",
@@ -130,10 +143,10 @@ def train(training_data, testing_data, model_file, epochs):
     default="out/final.keras",
     help="File to read the model from",
 )
-def eval(m, k, g, t, model_file):
+def eval(m, k, g, t, vt, model_file):
     """Evaluate a given model against the parameters"""
     model = keras.saving.load_model(model_file)
-    click.echo(model.predict(np.array([[m, k, g, t]]), verbose=0))
+    click.echo(model.predict(np.array([[m, k, g, t, vt]]), verbose=0))
 
 
 cli.add_command(gendat)
