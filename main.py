@@ -146,7 +146,7 @@ def train(training_data, testing_data, model_file, epochs):
 def eval(m, k, g, t, vt, model_file):
     """Evaluate a given model against the parameters"""
     model = keras.saving.load_model(model_file)
-    click.echo(model.predict(np.array([[m, k, g, t, vt]]), verbose=0))
+    click.echo(model.predict(np.array([[m, k, g, t, vt]]), verbose=0)[0][0])
 
 
 cli.add_command(gendat)
