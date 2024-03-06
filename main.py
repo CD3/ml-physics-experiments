@@ -1,11 +1,12 @@
 import click
-import torch
-from torch import nn
-from torch.utils.data import DataLoader
+import pandas as pd
+import os
 
 import cream.simple_1d as s1d
-import cream.network as network
-from cream.network import CSVDataset, NeuralNetwork
+
+os.environ["KERAS_BACKEND"] = "jax"
+import keras
+from keras import losses, optimizers, metrics, callbacks, layers
 
 
 @click.group()
@@ -18,7 +19,7 @@ def cli():
     "-o",
     "--output",
     type=click.File("wb"),
-    default="data.csv",
+    default="out/data.csv",
     help="File to write generated data to",
 )
 @click.argument("rows", type=int)
@@ -32,64 +33,87 @@ def gendat(output, rows):
     "-t",
     "--training-data",
     type=click.File("rb"),
-    default="data.csv",
+    default="out/training.csv",
     help="File to read training data from",
 )
 @click.option(
     "-s",
-    "--test-data",
+    "--testing-data",
     type=click.File("rb"),
-    default="data.csv",
-    help="File to read test data from",
+    default="out/testing.csv",
+    help="File to read testing data from",
 )
 @click.option(
     "-m",
     "--model-file",
     type=click.Path(),
-    default="weights.pth",
-    help="File to write weights to",
-)
-@click.option(
-    "-l",
-    "--learning-rate",
-    type=float,
-    default=1e-4,
-    help="The learning rate of the model",
+    default="out/final.keras",
+    help="File to write the final model to",
 )
 @click.option(
     "-e",
     "--epochs",
     type=int,
-    default=5,
+    default=20,
     help="The number of epochs to train for",
 )
-@click.option(
-    "-b",
-    "--batch-size",
-    type=int,
-    default=64,
-    help="The batch size to train with",
-)
-def train(training_data, test_data, model_file, learning_rate, epochs, batch_size):
-    """Train a model and write its weights out to a file"""
+def train(training_data, testing_data, model_file, epochs):
+    """Train a model and write its weights out after each epoch to a file"""
+    training = pd.read_csv(training_data)
+    testing = pd.read_csv(testing_data)
 
-    train_loader = DataLoader(
-        CSVDataset(training_data), batch_size=batch_size, shuffle=True
+    training["k"], testing["k"] = s1d.K_(
+        training["drag_coefficient"],
+        training["fluid_density"],
+        training["cross_sectional_area"],
+    ), s1d.K_(
+        testing["drag_coefficient"],
+        testing["fluid_density"],
+        testing["cross_sectional_area"],
     )
-    test_loader = DataLoader(CSVDataset(test_data), batch_size=batch_size, shuffle=True)
 
-    model = NeuralNetwork()
+    training_x, training_y = (
+        training[["mass", "k", "gravitational_acceleration", "time"]],
+        training["relative_position"],
+    )
 
-    loss_fn = nn.HuberLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    testing_x, testing_y = (
+        testing[["mass", "k", "gravitational_acceleration", "time"]],
+        testing["relative_position"],
+    )
 
-    for t in range(epochs):
-        click.echo(f"epoch {t+1}:")
-        network.train(train_loader, model, loss_fn, optimizer, batch_size)
-        network.test(test_loader, model, loss_fn)
+    model = keras.Sequential(
+        [
+            layers.Input(shape=(4,)),
+            layers.Dense(512, activation="relu"),
+            layers.Dense(512, activation="relu"),
+            layers.Dropout(0.3),
+            layers.Dense(512, activation="relu"),
+            layers.Dropout(0.3),
+            layers.Dense(1),
+        ]
+    )
 
-    click.echo(f"finished {epochs} epochs")
-    torch.save(model.state_dict(), model_file)
+    model.compile(
+        loss=losses.Huber(delta=1.0),
+        optimizer=optimizers.Adam(learning_rate=1e-3),
+        metrics=[metrics.Accuracy()],
+    )
+
+    model.fit(
+        training_x,
+        training_y,
+        batch_size=128,
+        epochs=epochs,
+        validation_split=0.15,
+        callbacks=[
+            callbacks.ModelCheckpoint(filepath="out/{epoch}.keras"),
+            callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=2),
+        ],
+    )
+
+    model.evaluate(testing_x, testing_y)
+    model.save(model_file)
 
 
 @click.command()
@@ -101,16 +125,13 @@ def train(training_data, test_data, model_file, learning_rate, epochs, batch_siz
     "-m",
     "--model-file",
     type=click.Path(),
-    default="weights.pth",
-    help="File to read weights from",
+    default="out/final.keras",
+    help="File to read the model from",
 )
 def eval(m, k, g, t, model_file):
     """Evaluate a given model against the parameters"""
-
-    model = NeuralNetwork()
-    model.load_state_dict(torch.load(model_file))
-    model.eval()
-    click.echo(model(torch.FloatTensor([[m, k, g, t]]))[0][0].item())
+    model = keras.saving.load_model(model_file)
+    click.echo(model.predict([m, k, g, t], verbose=0))
 
 
 cli.add_command(gendat)

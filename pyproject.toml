@@ -7,12 +7,12 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pint = "^0.23"
 numpy = "^1"
-scipy = "^1"
-torch = "^2"
 click = "^8"
 pandas = "^2"
+keras = "^3"
+jax = {extras = ["cpu"], version = "^0.4"}
+packaging = "^23.2"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1"
