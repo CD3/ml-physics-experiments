@@ -5,8 +5,6 @@ import subprocess
 
 import numpy
 import pint
-import pqdm
-import pqdm.processes
 from tqdm import tqdm
 
 ureg = pint.UnitRegistry()
@@ -37,7 +35,7 @@ def fall_distance(t):
     return tau * vt.to("m/s").magnitude * numpy.log(numpy.cosh(t / tau))
 
 
-model_eval_cmd_tmpl = f"poetry run python ../../main.py eval -m '{{model_file}}' {m.to_base_units().magnitude} {k.to_base_units().magnitude} {g.to_base_units().magnitude} {{t}} {vt.to_base_units().magnitude}"
+model_eval_cmd_tmpl = f"poetry run python main.py eval -m '{{model_file}}' {m.to_base_units().magnitude} {k.to_base_units().magnitude} {g.to_base_units().magnitude} {{t}} {vt.to_base_units().magnitude}"
 
 
 def run_model(model_file):
@@ -61,5 +59,8 @@ def run_model(model_file):
                 pbar.update(1)
 
 
-with multiprocessing.Pool(initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-    p.map(run_model, pathlib.Path().glob("*.keras"))
+# this has to be limited, otherwise cuda runs out of memory to allocate
+with multiprocessing.Pool(
+    2, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)
+) as p:
+    p.map(run_model, pathlib.Path().glob("out/*.keras"))

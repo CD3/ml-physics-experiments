@@ -55,7 +55,7 @@ def gendat(output, rows):
     "-e",
     "--epochs",
     type=int,
-    default=10,
+    default=20,
     help="The number of epochs to train for",
 )
 def train(training_data, testing_data, model_file, epochs):
@@ -88,12 +88,16 @@ def train(training_data, testing_data, model_file, epochs):
     )
 
     training_x, training_y = (
-        training[["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]],
+        training[
+            ["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]
+        ],
         training["relative_position"],
     )
 
     testing_x, testing_y = (
-        testing[["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]],
+        testing[
+            ["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]
+        ],
         testing["relative_position"],
     )
 
@@ -149,9 +153,54 @@ def eval(m, k, g, t, vt, model_file):
     click.echo(model.predict(np.array([[m, k, g, t, vt]]), verbose=0)[0][0])
 
 
+@click.command()
+@click.option(
+    "-s",
+    "--testing-data",
+    type=click.File("rb"),
+    default="out/testing.csv",
+    help="File to read testing data from",
+)
+@click.option(
+    "-m",
+    "--model-file",
+    type=click.Path(),
+    default="out/final.keras",
+    help="File to write the final model to",
+)
+def test(testing_data, model_file):
+    """Evaluate a given model against a set of testing data"""
+    testing = pd.read_csv(testing_data)
+
+    testing["k"] = s1d.K_(
+        testing["drag_coefficient"],
+        testing["fluid_density"],
+        testing["cross_sectional_area"],
+    )
+
+    testing["terminal_velocity"] = s1d.Vt_(
+        testing["mass"],
+        testing["gravitational_acceleration"],
+        testing["drag_coefficient"],
+        testing["fluid_density"],
+        testing["cross_sectional_area"],
+    )
+
+    testing_x, testing_y = (
+        testing[
+            ["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]
+        ],
+        testing["relative_position"],
+    )
+
+    model = keras.saving.load_model(model_file)
+    model.evaluate(testing_x, testing_y)
+
+
 cli.add_command(gendat)
 cli.add_command(train)
 cli.add_command(eval)
+cli.add_command(test)
 
 if __name__ == "__main__":
     cli()
