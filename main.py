@@ -1,13 +1,14 @@
-import click
-import pandas as pd
 import os
+
+import click
 import numpy as np
+import pandas as pd
 
 import cream.simple_1d as s1d
 
 os.environ["KERAS_BACKEND"] = "jax"
 import keras
-from keras import losses, optimizers, callbacks, layers
+from keras import callbacks, layers, losses, optimizers
 
 
 @click.group()
