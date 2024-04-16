@@ -89,16 +89,12 @@ def train(training_data, testing_data, model_file, epochs):
     )
 
     training_x, training_y = (
-        training[
-            ["mass", "k", "gravitational_acceleration", "time"]
-        ],
+        training[["mass", "k", "gravitational_acceleration", "time"]],
         training["relative_position"],
     )
 
     testing_x, testing_y = (
-        testing[
-            ["mass", "k", "gravitational_acceleration", "time"]
-        ],
+        testing[["mass", "k", "gravitational_acceleration", "time"]],
         testing["relative_position"],
     )
 
