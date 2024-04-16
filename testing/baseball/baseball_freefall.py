@@ -1,8 +1,19 @@
 import functools
 import multiprocessing
+import os
 import pathlib
 import subprocess
 
+import numpy as np
+import torch
+
+torch.cuda.is_available = lambda: False
+torch.device("cpu")
+
+os.environ["KERAS_BACKEND"] = "torch"
+
+import click
+import keras
 import numpy
 import pint
 from tqdm import tqdm
@@ -24,10 +35,7 @@ A = c**2 / 4 / pi
 C = 2 * m * g / vt / rho / A
 C = C.to_base_units()
 
-
 k = 0.5 * C * rho * A
-
-
 tau = (vt / g).to("s").magnitude
 
 
@@ -35,32 +43,37 @@ def fall_distance(t):
     return tau * vt.to("m/s").magnitude * numpy.log(numpy.cosh(t / tau))
 
 
-model_eval_cmd_tmpl = f"poetry run python main.py eval -m '{{model_file}}' {m.to_base_units().magnitude} {k.to_base_units().magnitude} {g.to_base_units().magnitude} {{t}} {vt.to_base_units().magnitude}"
+@click.command()
+@click.argument("model_files", type=pathlib.Path, nargs=-1)
+def main(model_files):
+    for model_file in model_files:
+        print(f"Running {model_file}")
+        results_file = model_file.with_suffix(".txt")
+        model = keras.saving.load_model(model_file)
+
+        dt = 0.1
+        N = 100
+        ts = [dt * i for i in range(N)]
+        inputs = np.array(
+            [
+                [
+                    m.to_base_units().magnitude,
+                    k.to_base_units().magnitude,
+                    g.to_base_units().magnitude,
+                    t,
+                    vt.to_base_units().magnitude,
+                ]
+                for t in ts
+            ]
+        )
+
+        ys = [fall_distance(t) for t in ts]
+        model_ys = model.predict(inputs, verbose=False)
+        with open(results_file, "w") as f:
+            f.write("#t[s] y[m] model_y[m]")
+            for t, y, model_y in zip(ts, ys, model_ys):
+                f.write(f"{t} {y} {model_y[0]}\n")
 
 
-def run_model(model_file):
-    results_file = model_file.with_suffix(".txt")
-    cmd_tmpl = functools.partial(model_eval_cmd_tmpl.format, model_file=model_file)
-    dt = 0.1
-    N = 100
-    current_process = multiprocessing.current_process()
-    pbar_pos = current_process._identity[0] - 1
-    with open(results_file, "w") as f:
-        idxs = range(N)
-        with tqdm(total=N, desc=str(model_file), position=pbar_pos) as pbar:
-            for i in range(N):
-                t = dt * i
-                y = fall_distance(t)
-                cmd = cmd_tmpl(t=t)
-                model_y = (
-                    subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-                )
-                f.write(f"{t} {y} {model_y}\n")
-                pbar.update(1)
-
-
-# this has to be limited, otherwise cuda runs out of memory to allocate
-with multiprocessing.Pool(
-    2, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)
-) as p:
-    p.map(run_model, pathlib.Path().glob("out/*.keras"))
+if __name__ == "__main__":
+    main()
