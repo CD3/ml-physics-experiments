@@ -89,27 +89,25 @@ def train(training_data, testing_data, model_file, epochs):
 
     training_x, training_y = (
         training[
-            ["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]
+            ["mass", "k", "gravitational_acceleration", "time"]
         ],
         training["relative_position"],
     )
 
     testing_x, testing_y = (
         testing[
-            ["mass", "k", "gravitational_acceleration", "time", "terminal_velocity"]
+            ["mass", "k", "gravitational_acceleration", "time"]
         ],
         testing["relative_position"],
     )
 
     model = keras.Sequential(
         [
-            layers.Input(shape=(5,)),
-            layers.Dense(2048, activation="relu"),
-            layers.Dropout(0.3),
-            layers.Dense(2048, activation="relu"),
-            layers.Dropout(0.3),
-            layers.Dense(2048, activation="relu"),
-            layers.Dropout(0.3),
+            layers.Input(shape=(4,)),
+            layers.Dense(32, activation="relu"),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation="relu"),
+            layers.Dropout(0.2),
             layers.Dense(1),
         ]
     )
@@ -122,7 +120,7 @@ def train(training_data, testing_data, model_file, epochs):
     model.fit(
         training_x,
         training_y,
-        batch_size=2048,
+        batch_size=1024,
         epochs=epochs,
         validation_split=0.10,
         callbacks=[

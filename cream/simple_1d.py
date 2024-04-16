@@ -54,6 +54,11 @@ def K_(C: float, p: float, A: float) -> float:
     return (C * p * A) / 2
 
 
+def x_no_drag_(g: np.ndarray, t: np.ndarray) -> np.ndarray:
+    """Compute relative position (in m) of an object (not taking into account drag) in free-fall given the gravitational acceleration constant and the time"""
+    return (1 / 2) * g * (t**2)
+
+
 def generate(n: int) -> pd.DataFrame:
     """Generate `n` instances of training data"""
     gn = np.random.default_rng()
@@ -67,6 +72,7 @@ def generate(n: int) -> pd.DataFrame:
 
     Vt = Vt_(m, g, C, p, A)
     x = x_(Vt, g, t)
+    x_no_drag = x_no_drag_(g, t)
 
     df = pd.DataFrame(
         {
@@ -78,6 +84,7 @@ def generate(n: int) -> pd.DataFrame:
             "gravitational_acceleration": g,
             "terminal_velocity": Vt,
             "relative_position": x,
+            "relative_position_dragless": x_no_drag,
         }
     )
 
